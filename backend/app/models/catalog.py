@@ -34,6 +34,20 @@ class Publisher(UUIDPrimaryKey, Timestamps, Base):
     name: Mapped[str] = mapped_column(String(200), unique=True)
 
 
+class Shelf(UUIDPrimaryKey, Timestamps, Base):
+    """A physical shelf / location where copies are stored."""
+
+    __tablename__ = "shelves"
+
+    code: Mapped[str] = mapped_column(String(30), unique=True)
+    name: Mapped[str] = mapped_column(String(120))
+    location: Mapped[str | None] = mapped_column(String(160))
+    capacity: Mapped[int | None] = mapped_column(Integer)
+    description: Mapped[str | None] = mapped_column(Text)
+
+    copies: Mapped[list[BookCopy]] = relationship(back_populates="shelf")
+
+
 class Author(UUIDPrimaryKey, Timestamps, Base):
     __tablename__ = "authors"
 
@@ -140,6 +154,9 @@ class BookCopy(UUIDPrimaryKey, Timestamps, Base):
     acquisition_date: Mapped[date | None] = mapped_column(Date)
     price: Mapped[float | None] = mapped_column(Numeric(10, 2))
     shelf_location: Mapped[str | None] = mapped_column(String(80))
+    shelf_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("shelves.id", ondelete="SET NULL"), index=True
+    )
     condition: Mapped[CopyCondition] = mapped_column(
         str_enum(CopyCondition, "copy_condition"), default=CopyCondition.GOOD
     )
@@ -150,6 +167,7 @@ class BookCopy(UUIDPrimaryKey, Timestamps, Base):
     last_inventory_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     book: Mapped[Book] = relationship(back_populates="copies")
+    shelf: Mapped[Shelf | None] = relationship(back_populates="copies")
 
 
 class BookEmbedding(Base):

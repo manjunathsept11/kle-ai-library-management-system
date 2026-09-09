@@ -51,6 +51,8 @@ class LoanOut(ORMModel):
     renewed_count: int
     status: LoanStatus
     book: BookRef
+    member_name: str | None = None
+    member_identifier: str | None = None
 
 
 class FineOut(ORMModel):
@@ -63,6 +65,8 @@ class FineOut(ORMModel):
     status: FineStatus
     reason: str | None
     created_at: datetime
+    resolved_at: datetime | None = None
+    member_name: str | None = None
 
 
 class ReturnResult(BaseModel):
@@ -77,3 +81,26 @@ class BorrowingStatus(BaseModel):
     can_borrow: bool
     outstanding_fines: float
     fine_block_threshold: float
+
+
+class FinePaymentRequest(BaseModel):
+    amount: float = Field(gt=0)
+    method: str = Field(default="cash", max_length=30)
+    note: str | None = Field(default=None, max_length=200)
+
+
+class FineWaiveRequest(BaseModel):
+    reason: str = Field(min_length=3, max_length=300)
+
+
+class ManualFineRequest(BaseModel):
+    member_id: uuid.UUID
+    type: FineType
+    amount: float = Field(gt=0)
+    reason: str = Field(min_length=3, max_length=300)
+    loan_id: uuid.UUID | None = None
+
+
+class RenewResult(BaseModel):
+    loan: LoanOut
+    message: str

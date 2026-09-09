@@ -30,9 +30,11 @@ from app.models.catalog import (
     BookEmbedding,
     Category,
     Publisher,
+    Shelf,
 )
-from app.models.circulation import Fine, FinePayment, Loan
-from app.models.enums import CopyStatus, Role, UserStatus
+from app.models.circulation import Fine, FinePayment, Loan, Reservation
+from app.models.engagement import Favorite, Notification
+from app.models.enums import CopyStatus, NotificationType, Role, UserStatus
 from app.models.user import Department, RefreshToken, User
 from app.services import knowledge_service, search_service
 from sqlalchemy import delete, select
@@ -45,8 +47,9 @@ DEMO_PASSWORD = "Password123"
 def _reset(db) -> None:
     for model in (
         ChatMessage, ChatSession, SearchLog, KnowledgeChunk, KnowledgeDocument,
-        FinePayment, Fine, Loan, BookEmbedding, BookAuthor, BookCopy, Book,
-        Author, Category, Publisher, AuditLog, RefreshToken, User, Department,
+        Notification, Favorite, Reservation, FinePayment, Fine, Loan,
+        BookEmbedding, BookAuthor, BookCopy, Book, Author, Category, Publisher,
+        Shelf, AuditLog, RefreshToken, User, Department,
     ):
         db.execute(delete(model))
     db.commit()
@@ -88,6 +91,15 @@ def _seed(db) -> None:
     db.flush()
 
     librarian = users["librarian@kle.edu"]
+
+    shelves = {
+        s[0]: Shelf(code=s[0], name=s[1], location=s[2], capacity=s[3])
+        for s in seed_data.SHELVES
+    }
+    db.add_all(shelves.values())
+    db.flush()
+    shelf_codes = list(shelves)
+
     authors: dict[str, Author] = {}
     cats: dict[str, Category] = {}
     books: list[Book] = []
@@ -123,13 +135,16 @@ def _seed(db) -> None:
             book.authors.append(BookAuthor(author=a, position=pos))
         db.add(book)
         db.flush()
+        shelf = shelves[shelf_codes[len(books) % len(shelf_codes)]]
         for i in range(copies):
             db.add(
                 BookCopy(
                     book_id=book.id,
                     barcode=f"KLE{book.publication_year}{str(book.id)[:4]}{i:02d}".upper(),
                     acquisition_date=date.today() - timedelta(days=400 - i * 10),
-                    shelf_location=f"{cat_name[:3].upper()}-{year % 100:02d}",
+                    shelf_id=shelf.id,
+                    shelf_location=shelf.code,
+                    price=round(350 + (year % 40) * 12.5, 2),
                     status=CopyStatus.AVAILABLE,
                 )
             )
@@ -149,24 +164,86 @@ def _seed(db) -> None:
         )
     db.flush()
 
-    # A couple of demo loans so dashboards and the assistant have something to show.
+    # Demo circulation so dashboards, lists and the assistant have data to show.
     asha = users["asha@kle.edu"]
-    clean_code = next(b for b in books if b.title == "Clean Code")
-    copy = clean_code.copies[0]
-    copy.status = CopyStatus.ISSUED
-    db.add(
-        Loan(
-            copy_id=copy.id,
-            book_id=clean_code.id,
-            user_id=asha.id,
-            issued_by=librarian.id,
-            due_at=date.today() + timedelta(days=5),
-            issued_at=date.today() - timedelta(days=9),
+    vikram = users["vikram@kle.edu"]
+    meera = users["meera@kle.edu"]
+
+    def issue(book_title, member, issued_days_ago, due_in_days):
+        b = next(x for x in books if x.title == book_title)
+        c = next((c for c in b.copies if c.status == CopyStatus.AVAILABLE), None)
+        if c is None:
+            return None
+        c.status = CopyStatus.ISSUED
+        loan = Loan(
+            copy_id=c.id, book_id=b.id, user_id=member.id, issued_by=librarian.id,
+            issued_at=date.today() - timedelta(days=issued_days_ago),
+            due_at=date.today() + timedelta(days=due_in_days),
         )
-    )
+        db.add(loan)
+        db.flush()
+        return loan, b
+
+    issue("Clean Code", asha, 9, 5)
+    issue("Python Crash Course", vikram, 20, -6)  # overdue
+    issue("Effective Java", meera, 3, 11)
+    returned = issue("Grokking Algorithms", asha, 30, -2)
+    if returned:
+        loan, b = returned
+        loan.status = "returned"
+        loan.returned_at = date.today() - timedelta(days=1)
+        for c in b.copies:
+            if c.status == CopyStatus.ISSUED:
+                c.status = CopyStatus.AVAILABLE
+
+    # An overdue fine for Vikram, plus a paid one.
+    from app.models.enums import FineStatus, FineType
+
+    db.add(Fine(user_id=vikram.id, type=FineType.OVERDUE, amount=12.0,
+                reason="Overdue: Python Crash Course"))
+    db.add(Fine(user_id=meera.id, type=FineType.DAMAGE, amount=100.0,
+                paid_amount=100.0, status=FineStatus.PAID,
+                reason="Water-damaged cover"))
+
+    # A reservation queue on a fully-issued title.
+    dl = next(x for x in books if x.title == "Deep Learning")
+    for c in dl.copies:
+        c.status = CopyStatus.ISSUED
+        db.add(Loan(copy_id=c.id, book_id=dl.id, user_id=vikram.id,
+                    issued_by=librarian.id,
+                    issued_at=date.today() - timedelta(days=4),
+                    due_at=date.today() + timedelta(days=10)))
+    db.flush()
+    for pos, m in enumerate([asha, meera], start=1):
+        db.add(Reservation(book_id=dl.id, user_id=m.id, queue_position=pos))
+
+    db.add_all([
+        Favorite(user_id=asha.id, book_id=b.id)
+        for b in books if b.title in (
+            "Deep Learning", "Fluent Python", "Designing Data-Intensive Applications"
+        )
+    ])
+    # Flip past-due loans to OVERDUE (what the worker does hourly).
+    from app.services import circulation_service
+
+    circulation_service.mark_overdue(db)
+
+    db.add_all([
+        Notification(
+            user_id=asha.id, type=NotificationType.RECOMMENDATION,
+            title="New arrivals in Artificial Intelligence",
+            body="3 new titles were added this week.", link="/catalogue",
+        ),
+        Notification(
+            user_id=vikram.id, type=NotificationType.OVERDUE,
+            title="'Python Crash Course' is overdue",
+            body="Please return it to avoid further fines.", link="/my-loans",
+        ),
+    ])
+
     db.commit()
     print(f"Seeded {len(books)} books, {len(users)} users, "
-          f"{len(seed_data.KNOWLEDGE_DOCS)} knowledge documents.")
+          f"{len(shelves)} shelves, {len(seed_data.KNOWLEDGE_DOCS)} knowledge docs.")
 
     print("Building AI indexes (embeddings)...")
     n_books = search_service.reindex_all(db)

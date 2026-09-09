@@ -30,11 +30,22 @@ class PublisherOut(ORMModel):
 
 class CopyOut(ORMModel):
     id: uuid.UUID
+    book_id: uuid.UUID
     barcode: str
     status: CopyStatus
     condition: CopyCondition
     shelf_location: str | None
+    shelf_id: uuid.UUID | None
     acquisition_date: date | None
+    price: float | None
+    notes: str | None
+
+
+class CopyRow(CopyOut):
+    """Copy plus its book's title, for inventory lists."""
+
+    book_title: str = ""
+    shelf_code: str | None = None
 
 
 class BookSummary(ORMModel):
@@ -109,6 +120,7 @@ class BookUpdate(BaseModel):
 class CopyCreate(BaseModel):
     count: int = Field(default=1, ge=1, le=100)
     shelf_location: str | None = Field(default=None, max_length=80)
+    shelf_id: uuid.UUID | None = None
     condition: CopyCondition = CopyCondition.GOOD
     price: float | None = Field(default=None, ge=0)
     acquisition_date: date | None = None
@@ -118,4 +130,6 @@ class CopyUpdate(BaseModel):
     status: CopyStatus | None = None
     condition: CopyCondition | None = None
     shelf_location: str | None = None
+    shelf_id: uuid.UUID | None = None
     notes: str | None = None
+    price: float | None = Field(default=None, ge=0)

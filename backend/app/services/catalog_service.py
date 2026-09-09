@@ -17,6 +17,7 @@ from app.models.catalog import (
     BookCopy,
     Category,
     Publisher,
+    Shelf,
 )
 from app.models.enums import BookStatus, CopyStatus
 from app.schemas.catalog import BookCreate, BookUpdate, CopyCreate, CopyUpdate
@@ -242,12 +243,19 @@ def add_copies(
     db: Session, book_id: uuid.UUID, data: CopyCreate, *, actor_id: uuid.UUID
 ) -> list[BookCopy]:
     book = get_book(db, book_id)
+    shelf_label = data.shelf_location
+    if data.shelf_id is not None:
+        shelf = db.get(Shelf, data.shelf_id)
+        if shelf is None:
+            raise NotFoundError("Shelf not found")
+        shelf_label = shelf_label or shelf.code
     created: list[BookCopy] = []
     for _ in range(data.count):
         copy = BookCopy(
             book_id=book.id,
             barcode=_make_barcode(db),
-            shelf_location=data.shelf_location,
+            shelf_location=shelf_label,
+            shelf_id=data.shelf_id,
             condition=data.condition,
             price=data.price,
             acquisition_date=data.acquisition_date or date.today(),
@@ -276,7 +284,13 @@ def update_copy(
         raise BusinessRuleError(
             "This copy is on loan; process a return before changing its status"
         )
-    for field, value in data.model_dump(exclude_unset=True).items():
+    payload = data.model_dump(exclude_unset=True)
+    if "shelf_id" in payload and payload["shelf_id"] is not None:
+        shelf = db.get(Shelf, payload["shelf_id"])
+        if shelf is None:
+            raise NotFoundError("Shelf not found")
+        copy.shelf_location = shelf.code
+    for field, value in payload.items():
         setattr(copy, field, value)
     db.flush()
     audit_service.record(
@@ -284,3 +298,46 @@ def update_copy(
         entity_type="copy", entity_id=copy.id,
     )
     return copy
+
+
+def list_copies(
+    db: Session,
+    *,
+    q: str | None = None,
+    status: CopyStatus | None = None,
+    book_id: uuid.UUID | None = None,
+    shelf_id: uuid.UUID | None = None,
+    page: int = 1,
+    page_size: int = 30,
+) -> tuple[list[tuple[BookCopy, str, str | None]], int]:
+    stmt = (
+        select(BookCopy, Book.title, Shelf.code)
+        .join(Book, Book.id == BookCopy.book_id)
+        .join(Shelf, Shelf.id == BookCopy.shelf_id, isouter=True)
+    )
+    count = select(func.count(BookCopy.id)).join(Book, Book.id == BookCopy.book_id)
+    conds = []
+    if status:
+        conds.append(BookCopy.status == status)
+    if book_id:
+        conds.append(BookCopy.book_id == book_id)
+    if shelf_id:
+        conds.append(BookCopy.shelf_id == shelf_id)
+    if q:
+        like = f"%{q.lower()}%"
+        conds.append(
+            or_(
+                func.lower(Book.title).like(like),
+                func.lower(BookCopy.barcode).like(like),
+            )
+        )
+    for c in conds:
+        stmt = stmt.where(c)
+        count = count.where(c)
+    total = db.scalar(count) or 0
+    stmt = (
+        stmt.order_by(Book.title, BookCopy.barcode)
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
+    return [(row[0], row[1], row[2]) for row in db.execute(stmt).all()], total

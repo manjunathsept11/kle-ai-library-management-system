@@ -26,6 +26,17 @@ USERS = [
     ("prof.rao@kle.edu", "Dr. Lakshmi Rao", "faculty", "CSE", "FAC118"),
 ]
 
+SHELVES = [
+    ("A1", "Computer Science — Algorithms & Theory", "Ground floor, Aisle A", 120),
+    ("A2", "Computer Science — Systems & Networks", "Ground floor, Aisle A", 120),
+    ("B1", "Programming Languages", "Ground floor, Aisle B", 150),
+    ("B2", "Software Engineering & Web", "Ground floor, Aisle B", 150),
+    ("C1", "Artificial Intelligence & Data", "First floor, Aisle C", 100),
+    ("D1", "Databases & Cloud", "First floor, Aisle D", 90),
+    ("E1", "Commerce & Management", "First floor, Aisle E", 110),
+    ("REF", "Reference — not for loan", "Reading room", 60),
+]
+
 PUBLISHERS = [
     "Pearson", "McGraw-Hill", "O'Reilly Media", "Wiley", "Prentice Hall",
     "MIT Press", "Packt Publishing", "Cambridge University Press", "Apress",

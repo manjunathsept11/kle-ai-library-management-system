@@ -1,8 +1,7 @@
 """ORM models.
 
 ``load_all()`` imports every model module so that ``Base.metadata`` is complete
-for Alembic autogenerate and test setup. Import order matters only for
-relationship string resolution, which SQLAlchemy defers, so a flat list is fine.
+for Alembic autogenerate and test setup.
 """
 
 from __future__ import annotations
@@ -14,12 +13,12 @@ def load_all() -> None:
         audit,
         catalog,
         circulation,
+        engagement,
         setting,
         user,
     )
 
 
-# Eagerly load on package import too (convenient for scripts / REPL).
 load_all()
 
 from app.models.ai import (  # noqa: E402
@@ -38,8 +37,15 @@ from app.models.catalog import (  # noqa: E402
     BookEmbedding,
     Category,
     Publisher,
+    Shelf,
 )
-from app.models.circulation import Fine, FinePayment, Loan  # noqa: E402
+from app.models.circulation import (  # noqa: E402
+    Fine,
+    FinePayment,
+    Loan,
+    Reservation,
+)
+from app.models.engagement import Favorite, Notification  # noqa: E402
 from app.models.setting import LibrarySetting  # noqa: E402
 from app.models.user import Department, RefreshToken, User  # noqa: E402
 
@@ -54,15 +60,19 @@ __all__ = [
     "ChatMessage",
     "ChatSession",
     "Department",
+    "Favorite",
     "Fine",
     "FinePayment",
     "KnowledgeChunk",
     "KnowledgeDocument",
     "LibrarySetting",
     "Loan",
+    "Notification",
     "Publisher",
     "RefreshToken",
+    "Reservation",
     "SearchLog",
+    "Shelf",
     "User",
     "load_all",
 ]

@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_staff
 from app.db.session import get_db
+from app.models.enums import CopyStatus
 from app.models.user import User
 from app.schemas.catalog import (
     BookCreate,
@@ -17,6 +18,7 @@ from app.schemas.catalog import (
     BookUpdate,
     CopyCreate,
     CopyOut,
+    CopyRow,
     CopyUpdate,
 )
 from app.schemas.common import Message, Page
@@ -132,3 +134,27 @@ def update_copy(
     copy = catalog_service.update_copy(db, copy_id, data, actor_id=staff.id)
     db.commit()
     return CopyOut.model_validate(copy)
+
+
+@router.get("/copies", response_model=Page[CopyRow])
+def list_copies(
+    db: Session = Depends(get_db),
+    _: User = Depends(require_staff),
+    q: str | None = None,
+    status: CopyStatus | None = None,
+    book_id: uuid.UUID | None = None,
+    shelf_id: uuid.UUID | None = None,
+    page: int = Query(1, ge=1),
+    page_size: int = Query(30, ge=1, le=100),
+) -> Page[CopyRow]:
+    rows, total = catalog_service.list_copies(
+        db, q=q, status=status, book_id=book_id, shelf_id=shelf_id,
+        page=page, page_size=page_size,
+    )
+    items = []
+    for copy, title, shelf_code in rows:
+        row = CopyRow.model_validate(copy)
+        row.book_title = title
+        row.shelf_code = shelf_code
+        items.append(row)
+    return Page[CopyRow](items=items, total=total, page=page, page_size=page_size)

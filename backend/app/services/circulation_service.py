@@ -49,7 +49,11 @@ def _outstanding_fines(db: Session, user_id: uuid.UUID) -> float:
 
 
 def borrowing_status(db: Session, user: User) -> dict:
-    limit = settings_service.borrow_limit(db, user.role.value)
+    limit = (
+        user.borrow_limit_override
+        if user.borrow_limit_override is not None
+        else settings_service.borrow_limit(db, user.role.value)
+    )
     active = _active_loan_count(db, user.id)
     outstanding = _outstanding_fines(db, user.id)
     block_threshold = float(settings_service.get(db, "lost_book_flat_fine") or 500) / 2
@@ -130,6 +134,12 @@ def issue(
     copy.status = CopyStatus.ISSUED
     db.add(loan)
     db.flush()
+
+    # If this member was at the head of the reservation queue, close it out.
+    from app.services import reservation_service
+
+    reservation_service.fulfilled(db, copy.book_id, member.id, loan.id)
+
     audit_service.record(
         db, action="loan.issue", actor_user_id=staff_id or member.id,
         entity_type="loan", entity_id=loan.id,
@@ -193,7 +203,24 @@ def return_loan(
         )
         db.add(fine)
 
+    if fine is not None:
+        from app.models.enums import NotificationType
+        from app.services import notification_service
+
+        notification_service.notify(
+            db, user_id=loan.user_id, type_=NotificationType.FINE_ISSUED,
+            title=f"Overdue fine: {amount}",
+            body=f"An overdue fine of {amount} was added for a late return.",
+            link="/fines",
+        )
+
     db.flush()
+
+    # Promote the next person waiting for this title.
+    from app.services import reservation_service
+
+    reservation_service.on_copy_available(db, loan.book_id)
+
     audit_service.record(
         db, action="loan.return", actor_user_id=staff_id or loan.user_id,
         entity_type="loan", entity_id=loan.id,
@@ -257,22 +284,157 @@ def list_loans(
     *,
     user_id: uuid.UUID | None = None,
     active_only: bool = False,
+    status: LoanStatus | None = None,
+    returned: bool | None = None,
+    q: str | None = None,
     page: int = 1,
     page_size: int = 20,
 ) -> tuple[list[Loan], int]:
+    from app.models.catalog import Book
+
     stmt = select(Loan)
     count_stmt = select(func.count(Loan.id))
+    conds = []
     if user_id is not None:
-        stmt = stmt.where(Loan.user_id == user_id)
-        count_stmt = count_stmt.where(Loan.user_id == user_id)
+        conds.append(Loan.user_id == user_id)
     if active_only:
-        cond = Loan.status.in_([LoanStatus.ACTIVE, LoanStatus.OVERDUE])
-        stmt = stmt.where(cond)
-        count_stmt = count_stmt.where(cond)
+        conds.append(Loan.status.in_([LoanStatus.ACTIVE, LoanStatus.OVERDUE]))
+    if status is not None:
+        conds.append(Loan.status == status)
+    if returned is True:
+        conds.append(Loan.returned_at.is_not(None))
+    elif returned is False:
+        conds.append(Loan.returned_at.is_(None))
+    if q:
+        like = f"%{q.lower()}%"
+        stmt = stmt.join(Book, Book.id == Loan.book_id)
+        count_stmt = count_stmt.join(Book, Book.id == Loan.book_id)
+        conds.append(func.lower(Book.title).like(like))
+    for c in conds:
+        stmt = stmt.where(c)
+        count_stmt = count_stmt.where(c)
+    total = db.scalar(count_stmt) or 0
+    order = Loan.returned_at.desc() if returned else Loan.issued_at.desc()
+    stmt = stmt.order_by(order).offset((page - 1) * page_size).limit(page_size)
+    return list(db.scalars(stmt)), total
+
+
+# --- fines --------------------------------------------------------------
+
+def list_fines(
+    db: Session,
+    *,
+    user_id: uuid.UUID | None = None,
+    status: FineStatus | None = None,
+    page: int = 1,
+    page_size: int = 25,
+) -> tuple[list[Fine], int]:
+    stmt = select(Fine)
+    count_stmt = select(func.count(Fine.id))
+    if user_id is not None:
+        stmt = stmt.where(Fine.user_id == user_id)
+        count_stmt = count_stmt.where(Fine.user_id == user_id)
+    if status is not None:
+        stmt = stmt.where(Fine.status == status)
+        count_stmt = count_stmt.where(Fine.status == status)
     total = db.scalar(count_stmt) or 0
     stmt = (
-        stmt.order_by(Loan.issued_at.desc())
+        stmt.order_by(Fine.created_at.desc())
         .offset((page - 1) * page_size)
         .limit(page_size)
     )
     return list(db.scalars(stmt)), total
+
+
+def record_payment(
+    db: Session,
+    *,
+    fine_id: uuid.UUID,
+    amount: float,
+    method: str,
+    note: str | None,
+    staff_id: uuid.UUID,
+) -> Fine:
+    fine = db.get(Fine, fine_id)
+    if fine is None:
+        raise NotFoundError("Fine not found")
+    if fine.status in (FineStatus.PAID, FineStatus.WAIVED):
+        raise BusinessRuleError("This fine is already settled")
+    if amount <= 0:
+        raise BusinessRuleError("Payment amount must be positive")
+    if amount > fine.outstanding + 0.001:
+        raise BusinessRuleError(
+            f"Payment ({amount}) exceeds the outstanding balance ({fine.outstanding})"
+        )
+
+    from app.models.circulation import FinePayment
+
+    db.add(
+        FinePayment(
+            fine_id=fine.id, amount=amount, method=method, note=note,
+            recorded_by=staff_id,
+        )
+    )
+    fine.paid_amount = round(float(fine.paid_amount) + amount, 2)
+    fine.status = (
+        FineStatus.PAID
+        if fine.paid_amount + 0.001 >= float(fine.amount)
+        else FineStatus.PARTIAL
+    )
+    if fine.status == FineStatus.PAID:
+        fine.resolved_at = _now()
+        fine.resolved_by = staff_id
+    db.flush()
+    audit_service.record(
+        db, action="fine.payment", actor_user_id=staff_id,
+        entity_type="fine", entity_id=fine.id,
+        summary=f"Paid {amount} via {method}",
+    )
+    return fine
+
+
+def waive_fine(
+    db: Session, *, fine_id: uuid.UUID, reason: str, staff_id: uuid.UUID
+) -> Fine:
+    fine = db.get(Fine, fine_id)
+    if fine is None:
+        raise NotFoundError("Fine not found")
+    if fine.status in (FineStatus.PAID, FineStatus.WAIVED):
+        raise BusinessRuleError("This fine is already settled")
+    fine.status = FineStatus.WAIVED
+    fine.reason = f"{fine.reason or ''}\nWaived: {reason}".strip()
+    fine.resolved_at = _now()
+    fine.resolved_by = staff_id
+    db.flush()
+    audit_service.record(
+        db, action="fine.waive", actor_user_id=staff_id,
+        entity_type="fine", entity_id=fine.id, summary=reason,
+    )
+    return fine
+
+
+def create_manual_fine(
+    db: Session,
+    *,
+    user_id: uuid.UUID,
+    fine_type: FineType,
+    amount: float,
+    reason: str,
+    loan_id: uuid.UUID | None,
+    staff_id: uuid.UUID,
+) -> Fine:
+    if amount <= 0:
+        raise BusinessRuleError("Fine amount must be positive")
+    if db.get(User, user_id) is None:
+        raise NotFoundError("Member not found")
+    fine = Fine(
+        user_id=user_id, loan_id=loan_id, type=fine_type, amount=amount, reason=reason
+    )
+    db.add(fine)
+    db.flush()
+    audit_service.record(
+        db, action="fine.create", actor_user_id=staff_id,
+        entity_type="fine", entity_id=fine.id,
+        summary=f"{fine_type.value} {amount}",
+    )
+    return fine

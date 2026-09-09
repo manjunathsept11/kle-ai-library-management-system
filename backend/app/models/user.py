@@ -5,7 +5,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, ForeignKey, Index, String
+from sqlalchemy import Boolean, DateTime, ForeignKey, Index, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
@@ -44,6 +44,10 @@ class User(UUIDPrimaryKey, Timestamps, Base):
     failed_login_count: Mapped[int] = mapped_column(default=0)
     locked_until: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # Admin overrides / notes.
+    borrow_limit_override: Mapped[int | None] = mapped_column(Integer)
+    staff_notes: Mapped[str | None] = mapped_column(Text)
 
     department: Mapped[Department | None] = relationship(back_populates="users")
 

@@ -9,7 +9,13 @@ from sqlalchemy import DateTime, ForeignKey, Index, Integer, Numeric, String, Te
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
-from app.models.enums import FineStatus, FineType, LoanStatus, str_enum
+from app.models.enums import (
+    FineStatus,
+    FineType,
+    LoanStatus,
+    ReservationStatus,
+    str_enum,
+)
 
 
 class Loan(UUIDPrimaryKey, Timestamps, Base):
@@ -94,3 +100,33 @@ class FinePayment(UUIDPrimaryKey, Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=lambda: datetime.now()
     )
+
+
+class Reservation(UUIDPrimaryKey, Timestamps, Base):
+    """A hold placed on a title when no copy is available."""
+
+    __tablename__ = "reservations"
+    __table_args__ = (
+        Index("ix_reservations_book_status", "book_id", "status"),
+        Index("ix_reservations_user_status", "user_id", "status"),
+    )
+
+    book_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("books.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[ReservationStatus] = mapped_column(
+        str_enum(ReservationStatus, "reservation_status"),
+        default=ReservationStatus.PENDING,
+    )
+    queue_position: Mapped[int] = mapped_column(Integer, default=1)
+    ready_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    fulfilled_loan_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("loans.id", ondelete="SET NULL")
+    )
+    cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    book: Mapped[Book] = relationship()  # noqa: F821
