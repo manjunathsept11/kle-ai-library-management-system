@@ -13,18 +13,23 @@ assistant. The core library keeps working even with AI switched off.
 
 ## 1. Status
 
-**Vertical slice — working end to end, automated + manually tested.**
+**Working end to end — automated + manually tested. Light & dark themes.**
 
 | Area | State |
 |------|-------|
-| Auth: JWT access/refresh with rotation, argon2 hashing, account lockout, RBAC | ✅ |
-| Book catalogue, authors/categories/publishers, per-copy inventory | ✅ |
+| Auth: JWT access/refresh with rotation, argon2, account lockout, RBAC (4 roles) | ✅ |
+| Catalogue, authors/categories/publishers, **shelves**, per-copy inventory | ✅ |
 | Circulation: issue / return / renew, automatic overdue fines, borrow-limit + fine-block rules | ✅ |
+| **Reservations**: place / cancel, per-title hold queue, auto-promote on return, expiry | ✅ |
+| **Fine management**: record payment, partial payment, waive (with reason), manual fines | ✅ |
+| **Notifications**: in-app feed + bell, mark read, staff announcements/broadcast | ✅ |
+| **Favorites**: save / unsave books | ✅ |
 | Search: keyword + **AI semantic** + hybrid, each result shows *why* it matched | ✅ |
-| **AI assistant (RAG)**: policy retrieval + the member's own loans/fines/availability, grounded sources | ✅ |
-| React UI: member & librarian dashboards, catalogue, book detail, AI search, assistant, my loans, staff issue/return, staff add-book | ✅ |
-| Reservations & queue, fine payments/waivers, notifications, reports/exports, audit-log UI, admin settings UI | ⏳ planned |
-| OCR, research assistant, demand forecasting, procurement ML, voice | 🔮 v2+ |
+| **AI assistant (RAG)**: policy retrieval + member's own loans/fines/availability, grounded sources | ✅ |
+| **Admin console**: users (create/edit/suspend/reset), departments, runtime settings, audit log | ✅ |
+| **Reports**: role-aware dashboards, most-borrowed, inventory, overdue, circulation summary | ✅ |
+| React UI: 25+ pages, role-based nav, light/dark theme, responsive | ✅ |
+| OCR, research assistant, demand forecasting, procurement ML, voice, email delivery | 🔮 v2+ |
 
 ---
 
@@ -120,70 +125,78 @@ The login screen also has one-click buttons for each role.
 
 ## 6. Manual test walkthrough
 
-A full pass takes about 5 minutes.
+The theme toggle (☾ / ☀ in the top bar) switches light/dark and is remembered.
 
 ### 6.1 Auth & roles
-1. Open http://localhost:5180 → click **Student** demo button → **Sign in**.
-2. You land on the member dashboard: "Books on loan", "Borrowing limit",
-   "Outstanding fines", "Due soon" (Asha starts with *Clean Code* on loan).
-3. Sign out (bottom of the sidebar) → sign in as **Librarian** → you now see a
-   different dashboard plus **Issue / Return** and **Manage Books** in the sidebar.
-4. As a student, manually visiting `/staff/books` redirects you away (RBAC).
+1. Open http://localhost:5180 → click a demo chip → **Sign in**.
+2. **Student / Faculty** see: Dashboard, Catalogue, AI Smart Search, AI Assistant,
+   My Library, Favorites, Notifications.
+3. **Librarian** adds a *Librarian* section (Circulation Desk, Loans & Returns,
+   Reservations, Fines, Books, Inventory, Shelves, Categories).
+4. **Admin** adds an *Administrator* section (Users, Departments, Reports,
+   Settings, Audit Log).
+5. As a student, visiting `/admin/users` or `/staff/loans` redirects you away (RBAC).
 
-### 6.2 Catalogue
-1. As any user, open **Catalogue**.
-2. Search `python` → results filter. Tick **Available only** → out-of-stock
-   titles disappear. Use **Prev / Next** to page.
-3. Click a book → detail page shows metadata, the **Copies** table (with
-   barcodes and per-copy status), and an AI **Similar books** section.
+### 6.2 Student / Faculty
+- **Catalogue** — search, filter by category, "Available only", paginate. Open a
+  book → metadata, copies table, AI **Similar books**, **☆ Save**, and **Reserve**
+  (shown only when no copy is available — try *Deep Learning*).
+- **My Library** — tabs for **Current** (with **Renew**), **Reservations** (with
+  queue position and **Cancel**), **Fines** (Vikram has an outstanding one),
+  **History**.
+- **Favorites** — the books you saved.
+- **Notifications** — bell in the top bar shows unread count; the page lists all,
+  click one to mark read and jump to its target.
+- **Profile** — edit name/phone, change password.
 
-### 6.3 AI Smart Search
-1. Open **AI Smart Search**.
-2. Click the example chip *"cybersecurity books about web attacks"* (or type your
-   own natural-language query). Try each **Mode**: Hybrid / AI semantic / Keyword.
-3. Each result card shows a **"why it matched"** reason and a relevance score;
-   the header shows an **AI ranked** badge.
-4. *Note:* with the default `mock` embedding provider the ranking is deterministic
-   but not truly semantic — set a real provider (section 8) for meaningful results.
+### 6.3 AI Smart Search & Assistant
+- **AI Smart Search**: try the example chips or your own query; switch
+  Hybrid / AI semantic / Keyword; each result shows a "why it matched" reason.
+- **AI Assistant**: ask *"what books do I have on loan"*, *"explain the borrowing
+  policy"*, *"do I have fines"* — answers carry grounding source chips and never
+  expose another member's data.
+- With the default `mock` providers, semantic ranking is deterministic (not truly
+  semantic) and the assistant echoes retrieved context. Set real keys (section 8)
+  for production-quality output. Grounding and safety are identical either way.
 
-### 6.4 AI Assistant
-1. Open **AI Assistant**.
-2. Ask *"What books do I have on loan right now?"* → it reports your **actual**
-   loans from the database, with a source chip (`loan: Clean Code`).
-3. Ask *"Explain the borrowing and renewal policy"* → answer is grounded in the
-   policy documents, shown as `policy: …` source chips.
-4. Ask *"What has <another member> borrowed?"* → it will **not** reveal another
-   member's data.
-5. With `mock` LLM the wording is terse (it echoes the retrieved context); a real
-   LLM provider (section 8) produces natural answers. Grounding is identical
-   either way.
+### 6.4 Librarian — Circulation
+- **Circulation Desk → Issue**: search a member → **Select** (borrowing status +
+  a quick-return list of their loans appears) → search a book → **Issue**.
+- **Circulation Desk → Return**: type/scan a copy barcode (barcodes are on the
+  **Inventory** page and each book's Copies table).
+- **Loans & Returns**: filter by On loan / Overdue / Returned / All and by title;
+  **Renew** or **Return** any loan inline.
+- **Reservations**: see the hold queue; "Ready for pickup" holds are waiting at
+  the desk. Return the last copy of *Deep Learning* → the next person in the queue
+  is auto-promoted and notified.
+- **Fines**: **Pay** (full or partial, with method) or **Waive** (reason is
+  logged to the audit trail).
 
-### 6.5 Circulation (as Librarian)
-1. Sign in as **Librarian** → **Issue / Return**.
-2. **Issue:** search a member (e.g. `Vikram`) → **Select** → their borrowing
-   status appears. Search a book (e.g. `Head First Java`) → **Issue**. A toast
-   confirms the due date; the member's loan count goes up.
-3. Sign in as that member → **My Loans** shows the new loan → click **Renew** →
-   due date extends (capped at 2 renewals).
-4. **Return:** back as Librarian → **Issue / Return → Return** tab. Enter the
-   **copy ID** (find it on the book's detail page, Copies table) → **Return**.
-   Returned on time → no fine. (An overdue return auto-creates an overdue fine —
-   covered by the automated tests.)
-5. Try issuing a 5th book to a student → blocked with a clear "borrowing limit"
-   message.
+### 6.5 Librarian — Catalogue management
+- **Books**: add a book (modal), archive one (blocked if copies are on loan).
+- **Inventory**: every copy with shelf/condition/status/price; **Edit** to change
+  status, reassign a shelf, set condition/price/notes.
+- **Shelves**: create/edit shelves, see fill level, view the copies on each.
+- **Categories**: manage categories, publishers and authors (delete is blocked
+  while books reference them).
 
-### 6.6 Add a book (as Librarian)
-1. **Manage Books** → fill Title + Authors (comma-separated) + Initial copies →
-   **Add book**.
-2. You're taken to the new book's page. It's indexed for AI search automatically —
-   search for it in **AI Smart Search**.
+### 6.6 Admin
+- **Users**: filter by role/status, **+ Add user** (create a librarian),
+  **Edit** (change role, suspend, set a borrow-limit override, staff notes),
+  **Reset PW**. You can't change your own role.
+- **Departments**: CRUD.
+- **Reports**: circulation summary (7/30/90/365 days), most borrowed, inventory
+  breakdown, overdue list.
+- **Settings**: edit any policy value (loan periods, fine rates, reservation hold
+  window, library hours, AI on/off) — changes apply immediately.
+- **Audit Log**: every data-changing action; filter by action prefix
+  (`loan.`, `fine.`, `admin.`).
 
 ### 6.7 AI-off behaviour
-1. Stop the backend. In `../.env` set `AI_ENABLED=false`. Restart the backend.
-2. **AI Smart Search** still works (keyword only, with a notice).
-   **AI Assistant** returns a clear "assistant is turned off" message.
-   All catalogue and circulation features are unaffected.
-3. Revert `AI_ENABLED=true` and restart.
+1. Stop the backend, set `AI_ENABLED=false` in `.env`, restart.
+2. **AI Smart Search** still works (keyword only, with a notice); **AI Assistant**
+   returns a clear "turned off" message; everything else is unaffected.
+3. Or leave AI on and toggle **Settings → AI → AI assistant enabled** off.
 
 ---
 
@@ -298,6 +311,14 @@ library-ai-system/
 
 ## 12. Roadmap
 
-Thin slice (done) → reservations & queue → fine payments / waivers + management
-screens → notifications (in-app + email) → reports & exports → audit-log &
-admin-settings UI → hardening → migrate to PostgreSQL + pgvector for production.
+**Done:** core circulation, reservations & queue, fines management,
+notifications, favorites, semantic search, RAG assistant, full admin console,
+reports, light/dark themed UI across 25+ pages.
+
+**Next:** email delivery for notifications, CSV/PDF export on reports,
+bulk book import, cover-image upload, saved-search alerts, then hardening
+(load test, backup drill, rate limits) and migration to PostgreSQL + pgvector
+for production.
+
+**v2+:** OCR / digital library, AI research assistant, ML demand forecasting,
+procurement suggestions, voice search.
