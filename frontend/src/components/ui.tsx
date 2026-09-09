@@ -59,7 +59,7 @@ export function PageHeader({
   sub,
   actions,
 }: {
-  title: string;
+  title: ReactNode;
   sub?: ReactNode;
   actions?: ReactNode;
 }) {

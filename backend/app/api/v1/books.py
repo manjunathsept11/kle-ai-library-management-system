@@ -46,6 +46,7 @@ def list_books(
     author: str | None = None,
     year: int | None = Query(default=None, ge=1400, le=2100),
     available_only: bool = False,
+    include_archived: bool = False,
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=20, ge=1, le=100),
 ) -> Page[BookSummary]:
@@ -56,6 +57,7 @@ def list_books(
         author=author,
         year=year,
         available_only=available_only,
+        include_archived=include_archived and _.is_staff,
         page=page,
         page_size=page_size,
     )

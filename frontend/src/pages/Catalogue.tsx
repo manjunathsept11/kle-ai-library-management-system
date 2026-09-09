@@ -1,23 +1,29 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../lib/useApi";
-import { Empty, ErrorBox, Loading } from "../components/ui";
-import type { BookSummary, Page } from "../api/types";
+import {
+  Empty,
+  ErrorBox,
+  PageHeader,
+  Pager,
+  SkeletonRows,
+} from "../components/ui";
+import type { BookSummary, Category, Page } from "../api/types";
 
 export default function Catalogue() {
   const [params, setParams] = useSearchParams();
   const q = params.get("q") ?? "";
   const page = Number(params.get("page") ?? "1");
+  const category = params.get("category") ?? "";
   const availableOnly = params.get("available") === "1";
   const [input, setInput] = useState(q);
 
-  const query = new URLSearchParams({
-    page: String(page),
-    page_size: "18",
-  });
-  if (q) query.set("q", q);
-  if (availableOnly) query.set("available_only", "true");
+  const cats = useApi<Category[]>("/categories");
 
+  const query = new URLSearchParams({ page: String(page), page_size: "18" });
+  if (q) query.set("q", q);
+  if (category) query.set("category", category);
+  if (availableOnly) query.set("available_only", "true");
   const { data, loading, error } = useApi<Page<BookSummary>>(
     `/books?${query.toString()}`,
   );
@@ -30,71 +36,83 @@ export default function Catalogue() {
     }
     setParams(p);
   };
-
-  const totalPages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1;
+  const pages = data ? Math.max(1, Math.ceil(data.total / data.page_size)) : 1;
 
   return (
-    <div className="stack">
-      <h1>Catalogue</h1>
+    <>
+      <PageHeader
+        title="Catalogue"
+        sub="Browse and search the full collection"
+        actions={
+          <Link to="/ai-search" className="btn accent">
+            ✦ AI Smart Search
+          </Link>
+        }
+      />
 
-      <form
-        className="card row"
-        onSubmit={(e) => {
-          e.preventDefault();
-          update({ q: input || null, page: "1" });
-        }}
-      >
-        <input
-          placeholder="Search by title, author, ISBN, keyword…"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-        />
-        <label
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            flex: "0 0 auto",
-            margin: 0,
+      <div className="card card-pad stack-sm" style={{ marginBottom: 16 }}>
+        <form
+          className="row"
+          onSubmit={(e) => {
+            e.preventDefault();
+            update({ q: input || null, page: "1" });
           }}
         >
           <input
-            type="checkbox"
-            style={{ width: 16 }}
-            checked={availableOnly}
-            onChange={(e) =>
-              update({ available: e.target.checked ? "1" : null, page: "1" })
-            }
+            className="grow"
+            placeholder="Title, author, ISBN, keyword…"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
           />
-          Available only
-        </label>
-        <button type="submit" style={{ flex: "0 0 auto" }}>
-          Search
-        </button>
-        <Link
-          to="/ai-search"
-          className="btn secondary"
-          style={{ flex: "0 0 auto", alignSelf: "center" }}
-        >
-          ✦ Try AI Smart Search
-        </Link>
-      </form>
+          <select
+            style={{ maxWidth: 200 }}
+            value={category}
+            onChange={(e) => update({ category: e.target.value || null, page: "1" })}
+          >
+            <option value="">All categories</option>
+            {(cats.data ?? []).map((c) => (
+              <option key={c.id} value={c.name}>
+                {c.name}
+              </option>
+            ))}
+          </select>
+          <label className="check" style={{ margin: 0, whiteSpace: "nowrap" }}>
+            <input
+              type="checkbox"
+              checked={availableOnly}
+              onChange={(e) =>
+                update({ available: e.target.checked ? "1" : null, page: "1" })
+              }
+            />
+            Available only
+          </label>
+          <button className="btn" type="submit">
+            Search
+          </button>
+        </form>
+      </div>
 
       {loading ? (
-        <Loading />
+        <SkeletonRows rows={6} />
       ) : error ? (
         <ErrorBox error={error} />
       ) : data && data.items.length ? (
         <>
-          <p className="muted">{data.total} title(s)</p>
           <div className="book-grid">
             {data.items.map((b) => (
               <Link to={`/books/${b.id}`} key={b.id} className="card book-card">
+                <div className="cover">
+                  {b.cover_image_url ? (
+                    <img src={b.cover_image_url} alt="" />
+                  ) : (
+                    b.title[0]
+                  )}
+                </div>
                 <h3>{b.title}</h3>
-                <div className="authors">
+                <div className="by">
                   {b.author_names.join(", ") || "Unknown author"}
                 </div>
-                <div className="muted" style={{ fontSize: 12 }}>
+                <div className="small muted">
                   {b.publication_year ?? ""} · {b.language}
                 </div>
                 <div className="foot">
@@ -107,30 +125,18 @@ export default function Catalogue() {
               </Link>
             ))}
           </div>
-
-          <div className="spread">
-            <button
-              className="secondary"
-              disabled={page <= 1}
-              onClick={() => update({ page: String(page - 1) })}
-            >
-              ← Prev
-            </button>
-            <span className="muted">
-              Page {page} of {totalPages}
-            </span>
-            <button
-              className="secondary"
-              disabled={page >= totalPages}
-              onClick={() => update({ page: String(page + 1) })}
-            >
-              Next →
-            </button>
+          <div className="card" style={{ marginTop: 14 }}>
+            <Pager
+              page={page}
+              pages={pages}
+              total={data.total}
+              onPage={(p) => update({ page: String(p) })}
+            />
           </div>
         </>
       ) : (
-        <Empty>No books match your search.</Empty>
+        <Empty icon="▤">No books match your search.</Empty>
       )}
-    </div>
+    </>
   );
 }

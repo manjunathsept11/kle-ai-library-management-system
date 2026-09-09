@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { api } from "../api/client";
 import { useApi } from "../lib/useApi";
-import { AiBadge } from "../components/ui";
+import { AiBadge, Button, PageHeader } from "../components/ui";
 import type { ChatResponse, ChatSource } from "../api/types";
 
 interface Turn {
@@ -60,18 +60,17 @@ export default function Assistant() {
   }
 
   return (
-    <div className="stack">
-      <div>
-        <h1>
-          AI Library Assistant <AiBadge />
-        </h1>
-        <p className="muted">
-          Answers are grounded in library data. Availability, due dates and
-          fines are always confirmed against the database.
-        </p>
-      </div>
+    <>
+      <PageHeader
+        title={
+          <>
+            AI Library Assistant <AiBadge />
+          </>
+        }
+        sub="Answers are grounded in library data. Availability, due dates and fines are always confirmed against the database."
+      />
 
-      <div className="card chat">
+      <div className="card card-pad chat">
         <div className="chat-log" ref={logRef}>
           {turns.map((t, i) => (
             <div key={i} className={`msg ${t.role}`}>
@@ -90,14 +89,14 @@ export default function Assistant() {
               )}
             </div>
           ))}
-          {busy && <div className="msg bot">…thinking</div>}
+          {busy && <div className="msg bot muted">…thinking</div>}
         </div>
 
         <div>
           {turns.length <= 1 && prompts.data && (
-            <div className="suggested">
+            <div className="chip-row" style={{ marginBottom: 10 }}>
               {prompts.data.prompts.map((p) => (
-                <button key={p} onClick={() => send(p)}>
+                <button key={p} className="chip" onClick={() => send(p)}>
                   {p}
                 </button>
               ))}
@@ -115,12 +114,12 @@ export default function Assistant() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
             />
-            <button type="submit" disabled={busy}>
+            <Button type="submit" loading={busy}>
               Send
-            </button>
+            </Button>
           </form>
         </div>
       </div>
-    </div>
+    </>
   );
 }
