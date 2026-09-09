@@ -275,11 +275,39 @@ hr {
   font-size: 11px;
   color: var(--text-muted);
 }
+.sidebar-brand .collapse-btn {
+  margin-left: auto;
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+/* Collapsed rail: hide labels/section headings but KEEP the icons */
 .collapsed .sidebar-brand .name,
 .collapsed .nav-section-label,
-.collapsed .nav-item span,
-.collapsed .sidebar-foot .label {
+.collapsed .nav-item span:not(.ic),
+.collapsed .nav-item .pill,
+.collapsed .sidebar-brand .collapse-btn {
   display: none;
+}
+.collapsed .sidebar-brand {
+  padding: 8px 4px 14px;
+  justify-content: center;
+}
+.collapsed .nav-item {
+  justify-content: center;
+  padding: 9px 0;
+}
+/* Small unread dot on the collapsed Notifications icon */
+.collapsed .nav-item.has-badge .ic::after {
+  content: "";
+  position: absolute;
+  margin: -10px 0 0 12px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--danger);
+}
+.collapsed .nav-item.has-badge .ic {
+  position: relative;
 }
 
 .nav-section-label {
@@ -1287,6 +1315,18 @@ table.data td.num {
     display: none;
   }
 }
+.nav-scrim {
+  position: fixed;
+  inset: 0;
+  z-index: 65;
+  border: none;
+  padding: 0;
+  background: rgba(6, 12, 20, 0.45);
+  cursor: pointer;
+  animation: fade 0.15s ease;
+  display: none;
+}
+
 @media (max-width: 760px) {
   .shell {
     grid-template-columns: 1fr;
@@ -1299,17 +1339,14 @@ table.data td.num {
     z-index: 70;
     transform: translateX(-100%);
     transition: transform 0.2s ease;
-    width: 260px;
+    width: min(280px, 84vw);
+    box-shadow: var(--shadow-lg);
   }
   .shell.nav-open .sidebar {
     transform: translateX(0);
   }
-  .shell.nav-open::after {
-    content: "";
-    position: fixed;
-    inset: 0;
-    background: rgba(0, 0, 0, 0.4);
-    z-index: 65;
+  .nav-scrim {
+    display: block;
   }
   .hide-sm {
     display: none;

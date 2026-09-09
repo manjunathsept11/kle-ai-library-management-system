@@ -23,6 +23,9 @@ export default function Layout() {
     () => localStorage.getItem("kle.nav.collapsed") === "1",
   );
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== "undefined" && window.innerWidth <= 760,
+  );
   const [notifs, setNotifs] = useState<NotificationList | null>(null);
   const [menu, setMenu] = useState<"none" | "notif" | "profile">("none");
   const menuRef = useRef<HTMLDivElement>(null);
@@ -34,7 +37,17 @@ export default function Layout() {
     localStorage.setItem("kle.nav.collapsed", collapsed ? "1" : "0");
   }, [collapsed]);
 
+  useEffect(() => {
+    const h = () => setIsMobile(window.innerWidth <= 760);
+    window.addEventListener("resize", h);
+    return () => window.removeEventListener("resize", h);
+  }, []);
+
   useEffect(() => setMobileOpen(false), [loc.pathname]);
+
+  // One control: opens the drawer on small screens, collapses the rail on wide.
+  const toggleNav = () =>
+    isMobile ? setMobileOpen((o) => !o) : setCollapsed((c) => !c);
 
   const loadNotifs = () =>
     api<NotificationList>("/me/notifications")
@@ -94,7 +107,11 @@ export default function Layout() {
         key={e.to}
         to={e.to}
         end={e.end}
-        className={({ isActive }) => "nav-item" + (isActive ? " active" : "")}
+        className={({ isActive }) =>
+          "nav-item" +
+          (isActive ? " active" : "") +
+          (e.badge ? " has-badge" : "")
+        }
         title={e.label}
       >
         <span className="ic">{e.icon}</span>
@@ -107,10 +124,17 @@ export default function Layout() {
     <div
       className={
         "shell" +
-        (collapsed ? " collapsed" : "") +
+        (collapsed && !isMobile ? " collapsed" : "") +
         (mobileOpen ? " nav-open" : "")
       }
     >
+      {mobileOpen && (
+        <button
+          className="nav-scrim"
+          aria-label="Close menu"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
       <nav className="sidebar">
         <div className="sidebar-brand">
           <span className="mark">KL</span>
@@ -118,6 +142,14 @@ export default function Layout() {
             KLE Institute
             <small>AI Library</small>
           </span>
+          <button
+            className="icon-btn collapse-btn"
+            onClick={() => setCollapsed((c) => !c)}
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+            title={collapsed ? "Expand" : "Collapse"}
+          >
+            {collapsed ? "»" : "«"}
+          </button>
         </div>
 
         {renderNav(memberNav)}
@@ -136,13 +168,9 @@ export default function Layout() {
         )}
 
         <div className="sidebar-foot">
-          <button
-            className="nav-item"
-            style={{ width: "100%", border: "none", background: "none" }}
-            onClick={() => setCollapsed((c) => !c)}
-          >
-            <span className="ic">{collapsed ? "»" : "«"}</span>
-            <span>Collapse</span>
+          <button className="nav-item" onClick={logout}>
+            <span className="ic">⎋</span>
+            <span>Sign out</span>
           </button>
         </div>
       </nav>
@@ -150,16 +178,10 @@ export default function Layout() {
       <div className="main">
         <header className="topbar">
           <button
-            className="icon-btn hide-sm"
-            onClick={() => setMobileOpen((o) => !o)}
-            style={{ display: "none" }}
-          >
-            ☰
-          </button>
-          <button
             className="icon-btn"
-            onClick={() => setMobileOpen((o) => !o)}
-            aria-label="Menu"
+            onClick={toggleNav}
+            aria-label={isMobile ? "Open menu" : "Collapse sidebar"}
+            title="Menu"
           >
             ☰
           </button>
