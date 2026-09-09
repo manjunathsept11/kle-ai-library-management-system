@@ -1,0 +1,40 @@
+# Secrets / env
+.env
+*.env
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+*.egg-info/
+
+# Node / frontend
+node_modules/
+dist/
+.vite/
+*.local
+
+# Storage / data
+var/
+backend/var/
+*.sqlite3
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Claude Code local settings
+.claude/settings.local.json
+
+# tsc -b build leak from tsconfig.node.json
+frontend/vite.config.js
+frontend/vite.config.d.ts
+frontend/*.tsbuildinfo

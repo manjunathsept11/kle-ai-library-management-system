@@ -1,0 +1,28 @@
+[project]
+name = "kle-library-backend"
+version = "0.1.0"
+description = "KLE Institute AI-Powered Library Management System - backend"
+requires-python = ">=3.12"
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+src = ["app", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "C4", "SIM", "ARG", "RUF"]
+ignore = [
+    "B008",   # FastAPI Depends() in argument defaults is idiomatic
+    "E501",   # long lines (mostly seed data / prompts); not worth wrapping
+    "ARG001", # unused args are common in FastAPI dependency signatures
+    "ARG002",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra -q"
+filterwarnings = ["ignore::DeprecationWarning"]
+
+[tool.coverage.run]
+source = ["app"]
+omit = ["app/workers/*", "alembic/*"]

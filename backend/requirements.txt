@@ -1,0 +1,23 @@
+fastapi==0.115.6
+uvicorn[standard]==0.34.0
+pydantic==2.10.4
+pydantic-settings==2.7.1
+SQLAlchemy==2.0.36
+alembic==1.14.0
+argon2-cffi==23.1.0
+PyJWT==2.10.1
+python-multipart==0.0.20
+email-validator==2.2.0
+httpx==0.28.1
+tenacity==9.0.0
+python-dateutil==2.9.0.post0
+numpy==2.2.1
+
+# --- Production database (not needed for local SQLite dev) ---
+# psycopg[binary]==3.2.3
+# pgvector==0.3.6
+
+# --- dev / test ---
+pytest==8.3.4
+pytest-cov==6.0.0
+ruff==0.8.4
