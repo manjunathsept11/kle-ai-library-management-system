@@ -28,7 +28,8 @@ assistant. The core library keeps working even with AI switched off.
 | **AI assistant (RAG)**: policy retrieval + member's own loans/fines/availability, grounded sources | ✅ |
 | **Admin console**: users (create/edit/suspend/reset), departments, runtime settings, audit log | ✅ |
 | **Reports**: role-aware dashboards, most-borrowed, inventory, overdue, circulation summary | ✅ |
-| React UI: 25+ pages, role-based nav, light/dark theme, responsive | ✅ |
+| React UI: 26 pages, role-based nav, light/dark theme, responsive, in-app "How to use" guide | ✅ |
+| Motion layer: count-up stats, staggered entrances, AI glow, aurora login (respects `prefers-reduced-motion`) | ✅ |
 | OCR, research assistant, demand forecasting, procurement ML, voice, email delivery | 🔮 v2+ |
 
 ---

@@ -4,6 +4,7 @@ import {
   type ReactNode,
 } from "react";
 import { RequestError } from "../api/client";
+import { useCountUp } from "../lib/motion";
 
 /* ---------------------------------------------------------------- states */
 
@@ -164,15 +165,40 @@ export function Stat({
   delta?: string;
   tone?: "up" | "down";
 }) {
+  const animatable = typeof value === "number" || typeof value === "string";
   return (
     <div className="stat">
       <div className="stat-top">
         <span className="l">{label}</span>
         {icon && <span className="ic">{icon}</span>}
       </div>
-      <span className="n">{value}</span>
+      <span className="n">
+        {animatable ? <CountUp value={value as number | string} /> : value}
+      </span>
       {delta && <span className={`delta ${tone ?? ""}`}>{delta}</span>}
     </div>
+  );
+}
+
+function CountUp({ value }: { value: number | string }) {
+  const raw = typeof value === "number" ? String(value) : value;
+  // Preserve any currency prefix / suffix around a single number.
+  const m = raw.match(/^(\D*)(-?[\d,]*\.?\d+)(\D*)$/);
+  const decimals = m ? (m[2].split(".")[1]?.length ?? 0) : 0;
+  const target = m ? Number(m[2].replace(/,/g, "")) : NaN;
+  const animated = useCountUp(Number.isFinite(target) ? target : raw);
+
+  if (!m) return <>{raw}</>;
+  const shown =
+    decimals > 0
+      ? Number(animated.replace(/,/g, "")).toFixed(decimals)
+      : animated;
+  return (
+    <>
+      {m[1]}
+      {shown}
+      {m[3]}
+    </>
   );
 }
 

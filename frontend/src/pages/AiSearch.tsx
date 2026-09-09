@@ -41,7 +41,10 @@ export default function AiSearch() {
         sub="Ask in plain language. Semantic search understands intent; keyword search still works if AI is unavailable."
       />
 
-      <div className="card card-pad stack" style={{ marginBottom: 16 }}>
+      <div
+        className="card card-pad stack ai-glow"
+        style={{ marginBottom: 16 }}
+      >
         <form
           className="stack-sm"
           onSubmit={(e) => {

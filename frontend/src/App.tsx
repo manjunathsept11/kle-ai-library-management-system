@@ -16,6 +16,7 @@ const MyLibrary = lazy(() => import("./pages/MyLibrary"));
 const Favorites = lazy(() => import("./pages/Favorites"));
 const Notifications = lazy(() => import("./pages/Notifications"));
 const Profile = lazy(() => import("./pages/Profile"));
+const Guide = lazy(() => import("./pages/Guide"));
 
 const StaffCirculation = lazy(() => import("./pages/staff/Circulation"));
 const StaffLoans = lazy(() => import("./pages/staff/Loans"));
@@ -74,6 +75,7 @@ export default function App() {
           <Route path="favorites" element={<Favorites />} />
           <Route path="notifications" element={<Notifications />} />
           <Route path="profile" element={<Profile />} />
+          <Route path="guide" element={<Guide />} />
 
           <Route
             path="staff/circulation"

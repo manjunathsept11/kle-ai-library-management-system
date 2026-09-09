@@ -70,7 +70,7 @@ export default function Assistant() {
         sub="Answers are grounded in library data. Availability, due dates and fines are always confirmed against the database."
       />
 
-      <div className="card card-pad chat">
+      <div className="card card-pad chat ai-glow">
         <div className="chat-log" ref={logRef}>
           {turns.map((t, i) => (
             <div key={i} className={`msg ${t.role}`}>

@@ -82,6 +82,7 @@ export default function Layout() {
       icon: "◔",
       badge: notifs?.unread,
     },
+    { to: "/guide", label: "How to use", icon: "?" },
   ];
   const staffNav: NavEntry[] = [
     { to: "/staff/circulation", label: "Circulation Desk", icon: "⇄" },
@@ -336,6 +337,7 @@ const CRUMBS: [string, string][] = [
   ["/my-library", "My Library"],
   ["/favorites", "Favorites"],
   ["/notifications", "Notifications"],
+  ["/guide", "How to use the platform"],
   ["/profile", "My Profile"],
   ["/staff/circulation", "Circulation Desk"],
   ["/staff/loans", "Loans & Returns"],

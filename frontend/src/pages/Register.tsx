@@ -42,6 +42,7 @@ export default function Register() {
   return (
     <div className="auth">
       <aside className="auth-aside">
+        <div className="aurora" aria-hidden />
         <div className="brand-row">
           <span className="mark">KL</span> KLE Institute Library
         </div>
