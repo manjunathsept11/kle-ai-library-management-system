@@ -5,6 +5,9 @@ import { useTheme } from "../theme";
 import { api } from "../api/client";
 import type { NotificationList } from "../api/types";
 import { fmtDateTime } from "./ui";
+import TopProgress from "./TopProgress";
+import ChatWidget from "./ChatWidget";
+import CommandPalette from "./CommandPalette";
 
 interface NavEntry {
   to: string;
@@ -129,6 +132,9 @@ export default function Layout() {
         (mobileOpen ? " nav-open" : "")
       }
     >
+      <TopProgress />
+      <CommandPalette />
+      <ChatWidget />
       {mobileOpen && (
         <button
           className="nav-scrim"
@@ -189,6 +195,16 @@ export default function Layout() {
           <span className="crumb">
             {crumbFor(loc.pathname)}
           </span>
+
+          <button
+            className="cmdk-hint hide-sm"
+            onClick={() => window.dispatchEvent(new Event("cmdk:open"))}
+            title="Quick jump"
+          >
+            <span>Search</span>
+            <kbd>{navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}</kbd>
+            <kbd>K</kbd>
+          </button>
 
           <div className="right" style={{ display: "flex", gap: 4 }}>
             <button

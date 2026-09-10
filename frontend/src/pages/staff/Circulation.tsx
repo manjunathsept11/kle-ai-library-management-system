@@ -2,6 +2,7 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import { api } from "../../api/client";
 import { useMutation } from "../../lib/useApi";
+import { confetti } from "../../lib/fx";
 import { useToast } from "../../theme";
 import {
   Button,
@@ -231,6 +232,7 @@ export default function Circulation() {
                                 onClick={async () => {
                                   const r = await issue.run(member.id, b.id);
                                   if (r) {
+                                    confetti(0.5, 0.5);
                                     push(
                                       `Issued “${b.title}” — due ${fmtDate(r.due_at)}`,
                                       "ok",

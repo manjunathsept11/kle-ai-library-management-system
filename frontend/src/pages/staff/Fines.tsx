@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { api } from "../../api/client";
 import { useMutation } from "../../lib/useApi";
+import { confetti } from "../../lib/fx";
 import { usePagedQuery } from "../../lib/usePagedQuery";
 import { useToast } from "../../theme";
 import {
@@ -150,6 +151,7 @@ export default function Fines() {
                 onClick={async () => {
                   const r = await doPay.run(pay.id);
                   if (r !== undefined) {
+                    confetti(0.5, 0.55);
                     push("Payment recorded", "ok");
                     setPay(null);
                     reload();

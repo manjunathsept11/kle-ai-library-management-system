@@ -8,6 +8,7 @@ import {
   Pager,
   SkeletonRows,
 } from "../components/ui";
+import TiltLink from "../components/Tilt";
 import type { BookSummary, Category, Page } from "../api/types";
 
 export default function Catalogue() {
@@ -100,7 +101,11 @@ export default function Catalogue() {
         <>
           <div className="book-grid">
             {data.items.map((b) => (
-              <Link to={`/books/${b.id}`} key={b.id} className="card book-card">
+              <TiltLink
+                to={`/books/${b.id}`}
+                key={b.id}
+                className="card book-card"
+              >
                 <div className="cover">
                   {b.cover_image_url ? (
                     <img src={b.cover_image_url} alt="" />
@@ -122,7 +127,7 @@ export default function Catalogue() {
                     {b.available_copies}/{b.total_copies} available
                   </span>
                 </div>
-              </Link>
+              </TiltLink>
             ))}
           </div>
           <div className="card" style={{ marginTop: 14 }}>

@@ -6,6 +6,7 @@ import { ThemeProvider, ToastProvider } from "./theme";
 import App from "./App";
 import "./styles.css";
 import "./motion.css";
+import "./fancy.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
