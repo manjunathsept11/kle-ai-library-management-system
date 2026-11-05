@@ -22,9 +22,10 @@ import type {
   Loan,
   Page,
   Reservation,
+  BorrowRequest,
 } from "../api/types";
 
-type Tab = "current" | "reservations" | "fines" | "history";
+type Tab = "current" | "requests" | "reservations" | "fines" | "history";
 
 export default function MyLibrary() {
   const [tab, setTab] = useState<Tab>("current");
@@ -33,6 +34,11 @@ export default function MyLibrary() {
   const loans = useApi<Page<Loan>>("/me/loans?page_size=100");
   const reservations = useApi<Reservation[]>("/me/reservations");
   const fines = useApi<Fine[]>("/me/fines");
+  const requests = useApi<BorrowRequest[]>("/me/borrow-requests");
+  const cancelReq = useMutation((id: string) =>
+    api(`/borrow-requests/${id}`, { method: "DELETE" }),
+  );
+  const pendingReqs = requests.data?.filter((r) => r.status === "pending");
 
   const active = loans.data?.items.filter(
     (l) => l.status === "active" || l.status === "overdue",
@@ -89,6 +95,7 @@ export default function MyLibrary() {
         onChange={setTab}
         tabs={[
           { id: "current", label: "Current", count: active?.length },
+          { id: "requests", label: "Requests", count: pendingReqs?.length },
           {
             id: "reservations",
             label: "Reservations",
@@ -159,6 +166,62 @@ export default function MyLibrary() {
             </div>
           ) : (
             <Empty icon="✓">No books on loan.</Empty>
+          )}
+        </div>
+      )}
+
+      {tab === "requests" && (
+        <div className="card">
+          {requests.loading ? (
+            <SkeletonRows />
+          ) : requests.data && requests.data.length ? (
+            <div className="table-wrap">
+              <table className="data">
+                <thead>
+                  <tr>
+                    <th>Title</th>
+                    <th>Requested</th>
+                    <th>Status</th>
+                    <th>Librarian note</th>
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {requests.data.map((r) => (
+                    <tr key={r.id}>
+                      <td>
+                        <Link to={`/books/${r.book_id}`}>{r.book.title}</Link>
+                      </td>
+                      <td>{fmtDate(r.created_at)}</td>
+                      <td>
+                        <StatusBadge status={r.status} />
+                      </td>
+                      <td className="muted small">{r.decision_note ?? "—"}</td>
+                      <td>
+                        {r.status === "pending" && (
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={async () => {
+                              await cancelReq.run(r.id);
+                              requests.reload();
+                              push("Request withdrawn", "ok");
+                            }}
+                          >
+                            Withdraw
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <Empty icon="✋">
+              No requests yet. Open an available book and press “Request to
+              borrow”.
+            </Empty>
           )}
         </div>
       )}

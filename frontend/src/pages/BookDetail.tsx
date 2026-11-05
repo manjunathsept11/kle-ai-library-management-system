@@ -14,7 +14,12 @@ import {
   StatusBadge,
   fmtDate,
 } from "../components/ui";
-import type { BookDetail as Book, Favorite, SearchResponse } from "../api/types";
+import type {
+  BookDetail as Book,
+  BorrowRequest,
+  Favorite,
+  SearchResponse,
+} from "../api/types";
 
 export default function BookDetail() {
   const { id } = useParams();
@@ -36,6 +41,13 @@ export default function BookDetail() {
     if (isFav) await api(`/me/favorites/${id}`, { method: "DELETE" });
     else await api(`/me/favorites/${id}`, { method: "PUT" });
   });
+  const myReqs = useApi<BorrowRequest[]>(staff ? null : "/me/borrow-requests");
+  const pendingReq = myReqs.data?.some(
+    (r) => r.book_id === id && r.status === "pending",
+  );
+  const requestBorrow = useMutation(() =>
+    api("/borrow-requests", { method: "POST", body: { book_id: id } }),
+  );
   const reserve = useMutation(() =>
     api("/reservations", { method: "POST", body: { book_id: id } }),
   );
@@ -69,9 +81,32 @@ export default function BookDetail() {
               {isFav ? "★ Saved" : "☆ Save"}
             </Button>
             {data.available_copies > 0 ? (
-              <span className="badge ok" style={{ alignSelf: "center" }}>
-                {data.available_copies} available — borrow at the desk
-              </span>
+              staff ? (
+                <span className="badge ok" style={{ alignSelf: "center" }}>
+                  {data.available_copies} available
+                </span>
+              ) : pendingReq ? (
+                <span className="badge warn" style={{ alignSelf: "center" }}>
+                  Request pending approval
+                </span>
+              ) : (
+                <Button
+                  loading={requestBorrow.loading}
+                  onClick={async () => {
+                    const r = await requestBorrow.run();
+                    if (r !== undefined) {
+                      push("Request sent — a librarian will review it", "ok");
+                      myReqs.reload();
+                    } else
+                      push(
+                        requestBorrow.error?.message ?? "Could not send request",
+                        "err",
+                      );
+                  }}
+                >
+                  ✋ Request to borrow
+                </Button>
+              )
             ) : (
               <Button
                 loading={reserve.loading}

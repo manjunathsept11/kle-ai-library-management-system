@@ -10,6 +10,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, Timestamps, UUIDPrimaryKey
 from app.models.enums import (
+    BorrowRequestStatus,
     FineStatus,
     FineType,
     LoanStatus,
@@ -130,3 +131,33 @@ class Reservation(UUIDPrimaryKey, Timestamps, Base):
     cancelled_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     book: Mapped[Book] = relationship()  # noqa: F821
+
+
+class BorrowRequest(UUIDPrimaryKey, Timestamps, Base):
+    """A member's request to borrow a title; a librarian approves or rejects it."""
+
+    __tablename__ = "borrow_requests"
+    __table_args__ = (Index("ix_borrow_requests_status", "status"),)
+
+    book_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("books.id", ondelete="CASCADE"), index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.id", ondelete="CASCADE"), index=True
+    )
+    status: Mapped[BorrowRequestStatus] = mapped_column(
+        str_enum(BorrowRequestStatus, "borrow_request_status"),
+        default=BorrowRequestStatus.PENDING,
+    )
+    note: Mapped[str | None] = mapped_column(Text)
+    decision_note: Mapped[str | None] = mapped_column(Text)
+    decided_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL")
+    )
+    decided_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    loan_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("loans.id", ondelete="SET NULL")
+    )
+
+    book: Mapped[Book] = relationship()  # noqa: F821
+    user: Mapped[User] = relationship(foreign_keys=[user_id])  # noqa: F821

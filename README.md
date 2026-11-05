@@ -203,7 +203,7 @@ The theme toggle (☾ / ☀ in the top bar) switches light/dark and is remembere
 
 ## 7. Automated tests & checks
 
-### Backend (25 tests)
+### Backend (130+ tests)
 
 ```bash
 cd library-ai-system/backend
@@ -213,7 +213,12 @@ cd library-ai-system/backend
 ```
 
 Tests use a throwaway SQLite database and forced `mock` AI providers, so they
-never touch your dev data and never make network calls.
+never touch your dev data and never make network calls. `tests/test_scenarios.py`
+covers every role: the permission matrix, account lockout and suspension, admin
+user/department/settings management, issue/return/renew rules, fines
+(partial/full/waive/blocking), reservation queues, borrow requests and
+approvals, favorites, notifications, catalogue/shelf/category management,
+search and input validation.
 
 ### Frontend
 
@@ -221,6 +226,26 @@ never touch your dev data and never make network calls.
 cd library-ai-system/frontend
 npm run build        # type-check (tsc) + production build
 npm run lint         # eslint
+```
+
+### End-to-end (Playwright, real browser)
+
+```bash
+cd library-ai-system/frontend
+npx playwright test            # ~45 tests: every page for every role + full workflows
+npx playwright show-report     # open the HTML report after a run
+```
+
+This starts its **own** stack (backend on :8001 with a fresh seeded database,
+frontend on :5181) using the Edge browser already installed on Windows, so it
+never touches your dev database or the dev servers on :8000 / :5180.
+
+### User guide (PDF)
+
+```bash
+cd library-ai-system/frontend
+npx playwright test -c playwright.guide.config.ts   # re-capture screenshots for every role
+node ../docs/build-guide.mjs                        # build docs/KLE-Library-User-Guide.pdf
 ```
 
 ---

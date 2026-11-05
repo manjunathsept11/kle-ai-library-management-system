@@ -285,8 +285,9 @@ and join the queue for that title. When a copy becomes available it is held for
 the next member in the queue for 48 hours, after which the reservation expires
 and passes to the next member.
 
-Reservation features are being rolled out; check the catalogue page of a book
-for its current reservation status.""",
+Press Reserve on a book's page when no copy is available, and follow your place
+in the queue under My Library, Reservations. A loan cannot be renewed while
+another member is waiting for the title.""",
     ),
     (
         "Staff: Acquisitions and Weeding Notes", "internal", "staff",

@@ -40,6 +40,7 @@ from app.models.catalog import (  # noqa: E402
     Shelf,
 )
 from app.models.circulation import (  # noqa: E402
+    BorrowRequest,
     Fine,
     FinePayment,
     Loan,
@@ -56,6 +57,7 @@ __all__ = [
     "BookAuthor",
     "BookCopy",
     "BookEmbedding",
+    "BorrowRequest",
     "Category",
     "ChatMessage",
     "ChatSession",

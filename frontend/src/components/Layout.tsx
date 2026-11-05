@@ -52,16 +52,23 @@ export default function Layout() {
   const toggleNav = () =>
     isMobile ? setMobileOpen((o) => !o) : setCollapsed((c) => !c);
 
-  const loadNotifs = () =>
+  const [pendingApprovals, setPending] = useState<{ total: number } | null>(null);
+  const loadNotifs = () => {
     api<NotificationList>("/me/notifications")
       .then(setNotifs)
       .catch(() => {});
+    if (staff)
+      api<{ total: number }>("/borrow-requests?status=pending&page_size=1")
+        .then(setPending)
+        .catch(() => {});
+  };
 
+  // Re-poll on navigation too, so the Approvals badge clears right after a decision.
   useEffect(() => {
     loadNotifs();
     const t = setInterval(loadNotifs, 60_000);
     return () => clearInterval(t);
-  }, []);
+  }, [loc.pathname, staff]);
 
   useEffect(() => {
     const h = (e: MouseEvent) => {
@@ -90,6 +97,12 @@ export default function Layout() {
   const staffNav: NavEntry[] = [
     { to: "/staff/circulation", label: "Circulation Desk", icon: "⇄" },
     { to: "/staff/loans", label: "Loans & Returns", icon: "⟳" },
+    {
+      to: "/staff/requests",
+      label: "Approvals",
+      icon: "✋",
+      badge: pendingApprovals?.total,
+    },
     { to: "/staff/reservations", label: "Reservations", icon: "⧗" },
     { to: "/staff/fines", label: "Fines", icon: "₹" },
     { to: "/staff/books", label: "Books", icon: "▤" },
@@ -357,6 +370,7 @@ const CRUMBS: [string, string][] = [
   ["/profile", "My Profile"],
   ["/staff/circulation", "Circulation Desk"],
   ["/staff/loans", "Loans & Returns"],
+  ["/staff/requests", "Borrow Approvals"],
   ["/staff/reservations", "Reservations"],
   ["/staff/fines", "Fines"],
   ["/staff/books", "Book Management"],

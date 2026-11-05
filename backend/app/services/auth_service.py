@@ -101,7 +101,9 @@ def login(
                 entity_type="user", entity_id=user.id,
                 summary="Account locked after repeated failed logins",
             )
-        db.flush()
+        # The request is about to fail with a 401, so nothing commits for us:
+        # persist the counter here or lockout never takes effect.
+        db.commit()
         raise generic
 
     if user.status == UserStatus.SUSPENDED:

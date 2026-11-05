@@ -38,3 +38,9 @@ Thumbs.db
 frontend/vite.config.js
 frontend/vite.config.d.ts
 frontend/*.tsbuildinfo
+
+# Playwright output and generated guide artifacts
+frontend/test-results/
+frontend/playwright-report/
+docs/screenshots/
+docs/user-guide.html

@@ -14,7 +14,14 @@ interface SettingsOut {
   values: Record<string, unknown>;
 }
 
-const GROUPS: { title: string; keys: [string, string, "text" | "number" | "bool"][] }[] = [
+const GROUPS: { title: string; keys: [string, string, "text" | "number" | "bool" | "role"][] }[] = [
+  {
+    title: "Loan periods & borrowing limits",
+    keys: [
+      ["loan_period_days", "Loan period (days)", "role"],
+      ["borrow_limit", "Borrowing limit (books at once)", "role"],
+    ],
+  },
   {
     title: "Loans & renewals",
     keys: [
@@ -52,6 +59,8 @@ const GROUPS: { title: string; keys: [string, string, "text" | "number" | "bool"
   },
 ];
 
+const ROLES = ["student", "faculty", "librarian", "admin"] as const;
+
 export default function Settings() {
   const { data, loading, error, reload } = useApi<SettingsOut>("/admin/settings");
   const { push } = useToast();
@@ -85,7 +94,29 @@ export default function Settings() {
                 <div key={key} className="spread" style={{ gap: 16 }}>
                   <div className="grow">
                     <Field label={label}>
-                      {kind === "bool" ? (
+                      {kind === "role" ? (
+                        <div className="row">
+                          {ROLES.map((r) => (
+                            <label key={r} className="small muted" style={{ flex: 1 }}>
+                              <span style={{ textTransform: "capitalize" }}>{r}</span>
+                              <input
+                                type="number"
+                                min={0}
+                                value={String((draft[key] as Record<string, number>)?.[r] ?? "")}
+                                onChange={(e) =>
+                                  setDraft({
+                                    ...draft,
+                                    [key]: {
+                                      ...(draft[key] as Record<string, number>),
+                                      [r]: Number(e.target.value),
+                                    },
+                                  })
+                                }
+                              />
+                            </label>
+                          ))}
+                        </div>
+                      ) : kind === "bool" ? (
                         <label className="check">
                           <input
                             type="checkbox"
@@ -123,7 +154,7 @@ export default function Settings() {
                       if (r !== undefined) {
                         push(`${label} saved`, "ok");
                         reload();
-                      } else push("Failed", "err");
+                      } else push(save.error?.message ?? "Failed", "err");
                     }}
                   >
                     Save

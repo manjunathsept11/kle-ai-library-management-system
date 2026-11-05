@@ -73,6 +73,13 @@ class ReservationStatus(str, enum.Enum):
     EXPIRED = "expired"
 
 
+class BorrowRequestStatus(str, enum.Enum):
+    PENDING = "pending"      # waiting for a librarian decision
+    APPROVED = "approved"    # librarian approved -> loan issued
+    REJECTED = "rejected"
+    CANCELLED = "cancelled"  # withdrawn by the member
+
+
 class FineType(str, enum.Enum):
     OVERDUE = "overdue"
     LOST = "lost"
@@ -98,6 +105,7 @@ class NotificationType(str, enum.Enum):
     OVERDUE = "overdue"
     RESERVATION_READY = "reservation_ready"
     RESERVATION_EXPIRED = "reservation_expired"
+    BORROW_REQUEST = "borrow_request"
     FINE_ISSUED = "fine_issued"
     NEW_BOOK = "new_book"
     RECOMMENDATION = "recommendation"

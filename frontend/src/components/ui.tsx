@@ -1,6 +1,10 @@
 import {
+  cloneElement,
+  isValidElement,
   useEffect,
+  useId,
   type ButtonHTMLAttributes,
+  type ReactElement,
   type ReactNode,
 } from "react";
 import { RequestError } from "../api/client";
@@ -359,10 +363,18 @@ export function Field({
   hint?: string;
   children: ReactNode;
 }) {
+  const id = useId();
+  // A lone input/select/textarea gets linked to its label; composite children
+  // (e.g. an input-group with a button) are left as they were.
+  const control =
+    isValidElement(children) &&
+    ["input", "select", "textarea"].includes(children.type as string)
+      ? (children as ReactElement<{ id?: string }>)
+      : null;
   return (
     <div className="field">
-      {label && <label>{label}</label>}
-      {children}
+      {label && <label htmlFor={control ? (control.props.id ?? id) : undefined}>{label}</label>}
+      {control ? cloneElement(control, { id: control.props.id ?? id }) : children}
       {hint && <span className="hint">{hint}</span>}
     </div>
   );

@@ -19,8 +19,14 @@ from sqlalchemy.orm import Session
 from app.core.clock import as_aware, utcnow
 from app.core.errors import BusinessRuleError, NotFoundError
 from app.models.catalog import BookCopy
-from app.models.circulation import Fine, Loan
-from app.models.enums import CopyStatus, FineStatus, FineType, LoanStatus
+from app.models.circulation import Fine, Loan, Reservation
+from app.models.enums import (
+    CopyStatus,
+    FineStatus,
+    FineType,
+    LoanStatus,
+    ReservationStatus,
+)
 from app.models.user import User
 from app.services import audit_service, settings_service
 
@@ -244,8 +250,17 @@ def renew(
             f"This loan has already been renewed {max_renewals} time(s)"
         )
 
-    # Block renewal if someone else is waiting for the title (reservations land
-    # in a later phase; the check is a no-op until then).
+    # Someone is queued (or has a copy held) for this title: it must be returned.
+    waiting = db.scalar(
+        select(func.count(Reservation.id)).where(
+            Reservation.book_id == loan.book_id,
+            Reservation.status.in_((ReservationStatus.PENDING, ReservationStatus.READY)),
+        )
+    )
+    if waiting:
+        raise BusinessRuleError(
+            "Another member is waiting for this title, so it cannot be renewed"
+        )
     extend_days = int(settings_service.get(db, "renewal_extends_days") or 7)
     current_due = as_aware(loan.due_at)
     base = current_due if current_due > _now() else _now()

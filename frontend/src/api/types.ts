@@ -269,3 +269,17 @@ export interface ApiError {
     timestamp?: string;
   };
 }
+
+export interface BorrowRequest {
+  id: string;
+  book_id: string;
+  user_id: string;
+  status: "pending" | "approved" | "rejected" | "cancelled";
+  note: string | null;
+  decision_note: string | null;
+  decided_at: string | null;
+  created_at: string;
+  book: BookSummary;
+  member_name: string | null;
+  member_identifier: string | null;
+}

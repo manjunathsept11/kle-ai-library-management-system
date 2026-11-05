@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, selectinload
 
 from app.api.deps import get_current_user
-from app.core.errors import ConflictError, NotFoundError
+from app.core.errors import NotFoundError
 from app.db.session import get_db
 from app.models.catalog import Book
 from app.models.engagement import Favorite
@@ -47,10 +47,10 @@ def add_favorite(
 ) -> Message:
     if db.get(Book, book_id) is None:
         raise NotFoundError("Book not found")
-    if db.get(Favorite, {"user_id": user.id, "book_id": book_id}):
-        raise ConflictError("Already in favorites")
-    db.add(Favorite(user_id=user.id, book_id=book_id))
-    db.commit()
+    # PUT is idempotent: saving an already-saved book is a no-op, not an error.
+    if not db.get(Favorite, {"user_id": user.id, "book_id": book_id}):
+        db.add(Favorite(user_id=user.id, book_id=book_id))
+        db.commit()
     return Message(message="Added to favorites")
 
 

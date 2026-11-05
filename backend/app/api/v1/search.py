@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
 from app.api.deps import get_current_user, require_staff
@@ -70,9 +70,9 @@ def search_books(
 
 @router.get("/search", response_model=SearchResponse)
 def search_books_get(
-    q: str,
+    q: str = Query(min_length=1, max_length=400),
     mode: SearchMode = SearchMode.HYBRID,
-    limit: int = 20,
+    limit: int = Query(20, ge=1, le=50),
     available_only: bool = False,
     db: Session = Depends(get_db),
     user: User = Depends(get_current_user),

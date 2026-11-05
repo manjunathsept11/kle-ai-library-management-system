@@ -9,7 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.api.deps import require_roles
-from app.core.errors import NotFoundError
+from app.core.errors import BusinessRuleError, NotFoundError
 from app.db.session import get_db
 from app.models.audit import AuditLog
 from app.models.enums import Role, UserStatus
@@ -170,6 +170,31 @@ def get_settings(
     return SettingsOut(values=settings_service.get_all(db))
 
 
+def _is_num(v: object) -> bool:
+    return isinstance(v, int | float) and not isinstance(v, bool)
+
+
+def _check_setting(key: str, value: object) -> None:
+    """The value must have the same shape as the default (a bad loan-period map
+    would otherwise break issuing for a whole role)."""
+    default = settings_service.DEFAULTS[key]
+    floor = 1 if key == "loan_period_days" else 0
+    if isinstance(default, dict):
+        ok = (
+            isinstance(value, dict)
+            and set(value) == set(default)
+            and all(_is_num(v) and v >= floor for v in value.values())
+        )
+    elif isinstance(default, bool):
+        ok = isinstance(value, bool)
+    elif _is_num(default):
+        ok = _is_num(value) and value >= floor
+    else:
+        ok = isinstance(value, str) and bool(value.strip())
+    if not ok:
+        raise BusinessRuleError(f"Invalid value for '{key}'")
+
+
 @router.put("/settings", response_model=SettingsOut)
 def update_setting(
     data: SettingUpdate,
@@ -180,6 +205,7 @@ def update_setting(
 
     if data.key not in settings_service.DEFAULTS:
         raise NotFoundError(f"Unknown setting '{data.key}'")
+    _check_setting(data.key, data.value)
     settings_service.set_value(db, data.key, data.value)
     audit_service.record(
         db, action="admin.settings.update", actor_user_id=admin.id,

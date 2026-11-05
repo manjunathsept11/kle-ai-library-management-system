@@ -27,7 +27,16 @@ export class RequestError extends Error {
   status: number;
   details?: unknown;
   constructor(status: number, body: ApiError | undefined, fallback: string) {
-    super(body?.error?.message ?? fallback);
+    const d = body?.error?.details;
+    const first = Array.isArray(d)
+      ? (d[0] as { loc?: unknown[]; msg?: string })
+      : null;
+    const field = first?.loc?.filter((p) => p !== "body").join(".");
+    super(
+      first?.msg
+        ? `${field ? field + ": " : ""}${first.msg}`
+        : (body?.error?.message ?? fallback),
+    );
     this.status = status;
     this.code = body?.error?.code ?? "error";
     this.details = body?.error?.details;

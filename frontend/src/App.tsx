@@ -20,6 +20,7 @@ const Guide = lazy(() => import("./pages/Guide"));
 
 const StaffCirculation = lazy(() => import("./pages/staff/Circulation"));
 const StaffLoans = lazy(() => import("./pages/staff/Loans"));
+const StaffRequests = lazy(() => import("./pages/staff/Requests"));
 const StaffReservations = lazy(() => import("./pages/staff/Reservations"));
 const StaffFines = lazy(() => import("./pages/staff/Fines"));
 const StaffBooks = lazy(() => import("./pages/staff/Books"));
@@ -84,6 +85,10 @@ export default function App() {
           <Route
             path="staff/loans"
             element={<Guard roles={STAFF}><StaffLoans /></Guard>}
+          />
+          <Route
+            path="staff/requests"
+            element={<Guard roles={STAFF}><StaffRequests /></Guard>}
           />
           <Route
             path="staff/reservations"

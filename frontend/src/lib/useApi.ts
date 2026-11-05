@@ -59,26 +59,36 @@ export function useMutation<TArgs extends unknown[], TResult>(
     error: null,
   });
 
+  const errRef = useRef<RequestError | null>(null);
+
   const run = useCallback(
     async (...args: TArgs): Promise<TResult | undefined> => {
+      errRef.current = null;
       setState({ loading: true, error: null });
       try {
         const result = await fn(...args);
         setState({ loading: false, error: null });
         return result;
       } catch (err) {
-        setState({
-          loading: false,
-          error:
-            err instanceof RequestError
-              ? err
-              : new RequestError(0, undefined, String(err)),
-        });
+        const error =
+          err instanceof RequestError
+            ? err
+            : new RequestError(0, undefined, String(err));
+        errRef.current = error;
+        setState({ loading: false, error });
         return undefined;
       }
     },
     [fn],
   );
 
-  return { run, ...state };
+  // `error` is a getter so a handler reading it right after `await run()` sees
+  // this call's error, not the stale value captured at render time.
+  return {
+    run,
+    loading: state.loading,
+    get error() {
+      return errRef.current;
+    },
+  };
 }

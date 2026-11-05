@@ -44,6 +44,7 @@ export default function CommandPalette() {
       list.push(
         { label: "Circulation Desk", run: go("/staff/circulation"), hint: "Staff", keywords: "issue return" },
         { label: "Loans & Returns", run: go("/staff/loans"), hint: "Staff" },
+        { label: "Borrow approvals", run: go("/staff/requests"), hint: "Staff", keywords: "request approve reject" },
         { label: "Reservations queue", run: go("/staff/reservations"), hint: "Staff" },
         { label: "Fines", run: go("/staff/fines"), hint: "Staff", keywords: "payment waive" },
         { label: "Book Management", run: go("/staff/books"), hint: "Staff", keywords: "add archive" },

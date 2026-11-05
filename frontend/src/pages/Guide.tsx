@@ -58,7 +58,7 @@ const EVERYONE: Section[] = [
         body: "If every copy of a book is on loan, open its page and press “Reserve”. You join the queue; when a copy is returned the next person is notified and the copy is held for them for a set time.",
       },
       {
-        title: "My Library → Reservations / Fines / History",
+        title: "My Library → Requests / Reservations / Fines / History",
         to: "/my-library",
         body: "Track your place in each queue, review any fines and how they were settled, and see everything you’ve ever borrowed.",
       },
@@ -98,6 +98,11 @@ const LIBRARIAN: Section[] = [
         title: "Loans & Returns",
         to: "/staff/loans",
         body: "Every loan in one table. Filter by On loan / Overdue / Returned / All, search by title, and renew or return any loan inline. Member name and ID are shown on each row.",
+      },
+      {
+        title: "Approvals",
+        to: "/staff/requests",
+        body: "Members request available books from the book page. Approve to issue the loan straight away (limits and fines are checked), or Reject with a reason — the member is notified either way.",
       },
       {
         title: "Reservations",
