@@ -30,9 +30,9 @@ const fig = (key, caption) => {
 };
 const steps = (items) => `<ol class="steps">${items.map((i) => `<li>${i}</li>`).join("")}</ol>`;
 const bullets = (items) => `<ul>${items.map((i) => `<li>${i}</li>`).join("")}</ul>`;
-const tip = (t) => `<div class="callout tip"><b>Tip</b>${t}</div>`;
-const note = (t) => `<div class="callout note"><b>Note</b>${t}</div>`;
-const warn = (t) => `<div class="callout warn"><b>Careful</b>${t}</div>`;
+const tip = (t) => `<div class="callout tip"><span class="clabel">Tip</span>${t}</div>`;
+const note = (t) => `<div class="callout note"><span class="clabel">Note</span>${t}</div>`;
+const warn = (t) => `<div class="callout warn"><span class="clabel">Careful</span>${t}</div>`;
 const table = (head, rows, cls = "") =>
   `<table class="${cls}"><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows
     .map((r) => `<tr>${r.map((c) => `<td>${c}</td>`).join("")}</tr>`).join("")}</tbody></table>`;
@@ -507,10 +507,10 @@ table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 9
 th { background: var(--brand); color: #fff; text-align: left; padding: 6px 9px; font-weight: 600; }
 td { padding: 6px 9px; border-bottom: 1px solid var(--line); vertical-align: top; } tr { break-inside: avoid; } tr:nth-child(even) td { background: var(--bg); }
 .callout { border-left: 4px solid; border-radius: 6px; padding: 8px 12px; margin: 10px 0; break-inside: avoid; font-size: 9.8pt; }
-.callout b { display: block; text-transform: uppercase; letter-spacing: .08em; font-size: 7.8pt; margin-bottom: 2px; }
-.tip { background: #e8f5ee; border-color: #2f7d5b; } .tip b { color: #2f7d5b; }
-.note { background: #e9f1fb; border-color: #2d6cb5; } .note b { color: #2d6cb5; }
-.warn { background: #fdf1e3; border-color: #c9821f; } .warn b { color: #b06d12; }
+.callout .clabel { display: block; font-weight: 700; text-transform: uppercase; letter-spacing: .08em; font-size: 7.8pt; margin-bottom: 2px; }
+.tip { background: #e8f5ee; border-color: #2f7d5b; } .tip .clabel { color: #2f7d5b; }
+.note { background: #e9f1fb; border-color: #2d6cb5; } .note .clabel { color: #2d6cb5; }
+.warn { background: #fdf1e3; border-color: #c9821f; } .warn .clabel { color: #b06d12; }
 .callout-inline { padding: 0 6px; border-radius: 4px; font-weight: 600; font-size: 9pt; } .callout-inline.tip { color: #2f7d5b; } .callout-inline.warn { color: #b06d12; }
 ol.steps { counter-reset: s; list-style: none; padding-left: 0; } ol.steps li { counter-increment: s; position: relative; padding-left: 30px; margin: 6px 0; break-inside: avoid; }
 ol.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 21px; height: 21px; border-radius: 50%; background: var(--brand); color: #fff; font-size: 8.5pt; font-weight: 700; display: grid; place-items: center; }
@@ -547,23 +547,24 @@ async function render() {
 // Pass 1 renders without page numbers; pass 2 fills the contents with real ones.
 await render();
 const py = `
-import json, sys
+import json, re, sys
 from pypdf import PdfReader
-r = PdfReader(sys.argv[1]); n = int(sys.argv[2]); res = {}
+r = PdfReader(sys.argv[1]); titles = json.loads(sys.argv[2]); res = {}
 for i, pg in enumerate(r.pages):
-    t = pg.extract_text() or ""
-    for k in range(1, n + 1):
-        if str(k) not in res and ("CHAPTER %d" % k) in t.upper().replace("
-", " ") and i >= 2:
+    if i < 2: continue
+    # letter-spaced headings extract with gaps, so compare with all whitespace removed
+    t = re.sub(r"\\s+", "", (pg.extract_text() or "")).upper()
+    for k, title in enumerate(titles, start=1):
+        if str(k) not in res and re.sub(r"\\s+", "", "CHAPTER%d%s" % (k, title)).upper() in t:
             res[str(k)] = i + 1
 print(json.dumps(res))`;
+const firstWords = chapters.map((c) => c.title.replace(/&amp;/g, "&").split(" ").slice(0, 2).join(" "));
 try {
-  const found = JSON.parse(execFileSync("python", ["-c", py, out, String(chapters.length)]).toString());
+  const found = JSON.parse(execFileSync("python", ["-c", py, out, JSON.stringify(firstWords)]).toString());
   chapters.forEach((c, i) => { if (found[String(i + 1)]) pageOf[c.id] = found[String(i + 1)]; });
   await render();
 } catch (e) {
-  console.warn("Contents page numbers skipped:", String(e.message).split("
-")[0]);
+  console.warn("Contents page numbers skipped:", String(e.message).split(String.fromCharCode(10))[0]);
 }
 await browser.close();
 console.log(`PDF written: ${out}`);
